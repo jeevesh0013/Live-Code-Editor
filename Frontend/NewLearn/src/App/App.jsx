@@ -12,13 +12,13 @@ const App = () => {
   const editorRef = useRef(null);
 
   const [editor, setEditor] = useState(null);
-
   const [userName, setUserName] = useState(() => {
     const params = new URLSearchParams(window.location.search).get("username");
     return params || "";
   });
 
   const [users, setUsers] = useState([]);
+  const [output, setOutput] = useState([]);
 
   const handleMount = (editor) => {
     editorRef.current = editor;
@@ -37,6 +37,39 @@ const App = () => {
       "",
       `?username=${encodeURIComponent(username)}`
     );
+  };
+
+  const handleRuncode = () => {
+    const code = editorRef.current?.getValue() ?? "";
+    const logs = [];
+    const originalLog = console.log;
+
+    try {
+      console.log = (...args) => {
+        logs.push(
+          args
+            .map((arg) =>
+              typeof arg === "object" && arg !== null
+                ? JSON.stringify(arg)
+                : String(arg)
+            )
+            .join(" ")
+        );
+      };
+
+      const result = eval(code);
+
+      if (result !== undefined) {
+        logs.push(String(result));
+      }
+
+      setOutput(logs.length ? logs : ["Code executed successfully"]);
+    } catch (error) {
+      logs.push(`${error.name}: ${error.message}`);
+      setOutput(logs);
+    } finally {
+      console.log = originalLog;
+    }
   };
 
   useEffect(() => {
@@ -120,21 +153,51 @@ const App = () => {
 
         <ul className="p-4">
           {users.map((user, index) => (
-            <li key={index} className="text-gray-950 font-medium">
+            <li key={index} className="text-gray-950 font-medium" >
               {user.username}
             </li>
           ))}
         </ul>
       </aside>
 
-      <section className="w-3/4 bg-neutral-800 rounded-lg overflow-hidden">
-        <Editor
-          height="100%"
-          defaultLanguage="javascript"
-          defaultValue="// Start coding here"
-          theme="vs-dark"
-          onMount={handleMount}
-        />
+      <section className="h-full w-3/4 flex flex-col gap-3 min-w-0">
+        <div className="flex justify-between items-center">
+          <h2 className="text-white font-bold">JavaScript Editor</h2>
+
+          <button
+            onClick={handleRuncode}
+            className="bg-amber-50 text-gray-950 px-4 py-2 rounded-lg font-bold"
+          >
+            ▶ Run Code
+          </button>
+        </div>
+
+        <div className="flex-1 min-h-0 bg-neutral-800 rounded-lg overflow-hidden">
+          <Editor
+            height="100%"
+            defaultLanguage="javascript"
+            defaultValue={'console.log("Hello World");'}
+            theme="vs-dark"
+            onMount={handleMount}
+          />
+        </div>
+
+        <div className="h-1/4 min-h-32 bg-gray-900 text-white rounded-lg p-3 overflow-auto">
+          <div className="flex justify-between items-center mb-2">
+            <h3 className="font-bold">Output Console</h3>
+
+            <button
+              onClick={() => setOutput([])}
+              className="text-gray-300 hover:text-white text-sm"
+            >
+              Clear
+            </button>
+          </div>
+
+          <pre className="text-green-400 whitespace-pre-wrap break-words">
+            {output.join("\n")}
+          </pre>
+        </div>
       </section>
     </main>
   );
